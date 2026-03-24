@@ -1,7 +1,7 @@
 {
-  "name": "pixel-battle-furmanov",
+  "name": "furmanov-pixel-battle",
   "version": "1.0.0",
-  "description": "Пиксель Батл Фурманов",
+  "description": "Pixel Battle for Furmanov",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
