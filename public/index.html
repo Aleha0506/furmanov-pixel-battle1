@@ -6,81 +6,55 @@
     <title>Пиксель батл Фурманов</title>
     <style>
         body { 
-            display: flex; flex-direction: column; align-items: center; 
-            background: #121212; 
-            background-image: url('background.jpg'); 
-            background-size: cover; background-position: center; background-attachment: fixed;
-            color: white; font-family: 'Segoe UI', sans-serif; 
             margin: 0; height: 100vh; overflow: hidden;
-            /* Запрет выделения текста на всем сайте */
-            -webkit-user-select: none; user-select: none;
+            background: #121212 url('background.jpg') center/cover fixed;
+            color: white; font-family: sans-serif;
+            touch-action: none; -webkit-user-select: none; user-select: none;
         }
 
-        h1 { margin: 10px 0; font-size: 20px; z-index: 10; text-shadow: 2px 2px 5px black; }
-
-        .top-bar { 
-            position: fixed; top: 10px; left: 10px; z-index: 20;
-            background: rgba(20, 20, 20, 0.9); padding: 5px 15px; border-radius: 20px;
-            display: flex; align-items: center; border: 1px solid #444; backdrop-filter: blur(5px);
+        /* Верхняя панель */
+        .header {
+            position: fixed; top: 10px; width: 100%; display: flex;
+            justify-content: space-between; padding: 0 15px; box-sizing: border-box; z-index: 30;
         }
-        #status { font-weight: bold; min-width: 120px; text-align: center; font-size: 14px; }
-
-        .informer {
-            position: fixed; top: 10px; right: 10px; z-index: 20;
-            background: rgba(0, 0, 0, 0.7); padding: 5px 12px; border-radius: 15px;
-            display: flex; gap: 15px; font-size: 12px; border: 1px solid #333;
-        }
-        .informer span { color: #00ff88; font-weight: bold; }
-
-        /* --- ИЗМЕНЕНО: Адаптивная палитра (крупнее на мобильных) --- */
-        .palette {
-            position: fixed; right: 10px; bottom: 20px; z-index: 20;
-            display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px;
-            background: rgba(25, 25, 25, 0.95); padding: 10px; border-radius: 15px;
-            border: 1px solid #555; backdrop-filter: blur(10px);
-            max-width: 90vw; /* Чтобы не вылезала за экран */
-        }
-        @media (min-width: 600px) {
-            .palette { top: 60px; right: 10px; bottom: auto; grid-template-columns: repeat(4, 1fr); }
+        .ui-box {
+            background: rgba(20, 20, 20, 0.9); padding: 8px 12px;
+            border-radius: 12px; border: 1px solid #444; font-size: 14px; backdrop-filter: blur(5px);
         }
 
+        /* Координаты */
+        .coords-box { position: fixed; bottom: 90px; left: 15px; z-index: 30; }
+
+        /* Палитра лентой снизу */
+        .palette-container {
+            position: fixed; bottom: 0; left: 0; width: 100%;
+            background: rgba(15, 15, 15, 0.95); padding: 12px 0;
+            border-top: 1px solid #444; z-index: 40;
+            display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch;
+        }
+        .palette { display: flex; gap: 10px; padding: 0 20px; }
         .color-block {
-            width: 35px; height: 35px; border-radius: 8px; cursor: pointer;
-            border: 2px solid transparent; transition: transform 0.1s;
-            -webkit-tap-highlight-color: transparent; /* Убираем синюю вспышку при тапе */
+            min-width: 45px; height: 45px; border-radius: 10px; border: 2px solid transparent;
+            flex-shrink: 0;
         }
-        @media (max-width: 600px) {
-            .color-block { width: 40px; height: 40px; } /* Крупнее для пальца */
-        }
-        .color-block.selected { border-color: white; transform: scale(1.1); box-shadow: 0 0 10px white; }
+        .color-block.selected { border-color: white; transform: scale(1.1); box-shadow: 0 0 15px white; }
 
-        #viewport {
-            width: 100vw; height: 100vh;
-            overflow: hidden; cursor: move;
-            display: flex; align-items: center; justify-content: center;
-            touch-action: none;
-        }
-
-        #canvas { 
-            background: white; image-rendering: pixelated; 
-            box-shadow: 0 0 40px rgba(0,0,0,0.7);
-            cursor: pointer;
-        }
+        #viewport { width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; }
+        #canvas { background: white; image-rendering: pixelated; box-shadow: 0 0 50px rgba(0,0,0,0.9); transition: transform 0.05s linear; }
     </style>
 </head>
 <body>
-    <h1>Пиксель батл Фурманов</h1>
-    
-    <div class="top-bar">
-        <div id="status">Загрузка...</div>
+
+    <div class="header">
+        <div class="ui-box" id="status" style="color:#0f8;">Загрузка...</div>
+        <div class="ui-box">Онлайн: <span id="onlineCount" style="color:#0f8;">0</span></div>
     </div>
 
-    <div class="informer">
-        Онлайн: <span id="onlineCount">0</span>
-        Coords: <span id="coords">[X, Y]</span>
-    </div>
+    <div class="ui-box coords-box" id="coords">[X, Y]</div>
 
-    <div class="palette" id="palette"></div>
+    <div class="palette-container">
+        <div class="palette" id="palette"></div>
+    </div>
 
     <div id="viewport">
         <canvas id="canvas" width="1000" height="1000"></canvas>
@@ -91,18 +65,17 @@
         const socket = io();
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
-        const viewport = document.getElementById('viewport');
         const statusEl = document.getElementById('status');
         const onlineEl = document.getElementById('onlineCount');
         const coordsEl = document.getElementById('coords');
         const paletteEl = document.getElementById('palette');
 
         const GRID_SIZE = 200; 
-        const CELL_SIZE = canvas.width / GRID_SIZE;
+        const CELL_SIZE = 1000 / GRID_SIZE;
         
-        let scale = 1.5, offsetX = 0, offsetY = 0;
+        let scale = 1.0, offsetX = 0, offsetY = 0;
         let inCooldown = false;
-        let selectedColor = '#ee0101'; 
+        let selectedColor = '#ee0101';
 
         const FurmanovPalette = [
             '#ffffff', '#e6e6e6', '#9e9e9e', '#363636', '#000000', '#5a3a2a', '#a67d56', '#fdca96',
@@ -118,7 +91,7 @@
                 block.style.backgroundColor = color;
                 if (color === selectedColor) block.classList.add('selected');
                 block.onclick = (e) => {
-                    e.stopPropagation(); // Предотвращаем клик по холсту под палитрой
+                    e.stopPropagation();
                     document.querySelector('.color-block.selected')?.classList.remove('selected');
                     block.classList.add('selected');
                     selectedColor = color;
@@ -127,133 +100,129 @@
             });
         }
 
-        function drawPixel(x, y, color) {
-            ctx.fillStyle = color;
-            ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+        function updateTransform() {
+            canvas.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
         }
 
         socket.on('init', (board) => {
-            statusEl.innerText = "Готов!";
-            statusEl.style.color = "#4CAF50";
+            statusEl.innerText = "Рисуй!";
             for (let y = 0; y < GRID_SIZE; y++) {
                 for (let x = 0; x < GRID_SIZE; x++) {
-                    drawPixel(x, y, board[y][x]);
+                    ctx.fillStyle = board[y][x];
+                    ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
                 }
             }
             initPalette();
             updateTransform();
         });
 
-        socket.on('update', (data) => drawPixel(data.x, data.y, data.color));
+        socket.on('update', (data) => {
+            ctx.fillStyle = data.color;
+            ctx.fillRect(data.x * CELL_SIZE, data.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+        });
+
         socket.on('online_count', (count) => onlineEl.innerText = count);
 
-        // --- ИЗМЕНЕНО: Визуализация кулдауна 1 секунда ---
         socket.on('cooldown_start', (ms) => {
             inCooldown = true;
-            let timeLeft = ms / 1000;
-            statusEl.style.color = "#FF5252";
-            
-            // Сразу показываем 1 сек
-            statusEl.innerText = `Жди: ${timeLeft.toFixed(1)}с`;
-
-            const timer = setInterval(() => {
-                timeLeft -= 0.1; // Уменьшаем плавно
-                if (timeLeft <= 0) {
-                    clearInterval(timer);
-                    inCooldown = false;
-                    statusEl.innerText = "Рисуй!";
-                    statusEl.style.color = "#4CAF50";
-                } else {
-                    statusEl.innerText = `Жди: ${timeLeft.toFixed(1)}с`;
-                }
-            }, 100); // Обновляем часто для плавности
+            statusEl.innerText = "Жди...";
+            statusEl.style.color = "#f55";
+            setTimeout(() => {
+                inCooldown = false;
+                statusEl.innerText = "Рисуй!";
+                statusEl.style.color = "#0f8";
+            }, ms);
         });
 
-        function updateTransform() {
-            canvas.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
-        }
+        // ПИНЧ-ЗУМ И ПЕРЕМЕЩЕНИЕ
+        let lastDist = 0;
+        let isMoving = false;
+        let startX, startY, lastX, lastY;
+        let tapStart;
 
-        function getCanvasCoords(clientX, clientY) {
-            const rect = canvas.getBoundingClientRect();
-            const x = Math.floor((clientX - rect.left) / (CELL_SIZE * scale));
-            const y = Math.floor((clientY - rect.top) / (CELL_SIZE * scale));
-            return { x, y };
-        }
-
-        function updateCoordsInformer(clientX, clientY) {
-            const coords = getCanvasCoords(clientX, clientY);
-            if (coords.x >= 0 && coords.x < GRID_SIZE && coords.y >= 0 && coords.y < GRID_SIZE) {
-                coordsEl.innerText = `[${coords.x}, ${coords.y}]`;
+        window.addEventListener('touchstart', e => {
+            if (e.target.closest('.palette-container')) return;
+            if (e.touches.length === 2) {
+                lastDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
             } else {
-                coordsEl.innerText = "[Out]";
+                isMoving = true;
+                startX = lastX = e.touches[0].pageX;
+                startY = lastY = e.touches[0].pageY;
+                tapStart = Date.now();
             }
-        }
+        }, {passive: false});
 
-        // Мышь и Тач-зум
-        viewport.onwheel = (e) => {
+        window.addEventListener('touchmove', e => {
+            if (e.touches.length === 2) {
+                let dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+                scale *= dist / lastDist;
+                scale = Math.max(0.2, Math.min(scale, 20));
+                lastDist = dist;
+            } else if (isMoving) {
+                offsetX += e.touches[0].pageX - lastX;
+                offsetY += e.touches[0].pageY - lastY;
+                lastX = e.touches[0].pageX;
+                lastY = e.touches[0].pageY;
+            }
+            updateTransform();
             e.preventDefault();
-            scale = Math.min(Math.max(0.3, scale * (e.deltaY > 0 ? 0.85 : 1.15)), 25);
-            updateTransform();
-        };
-
-        // --- ИЗМЕНЕНО: Улучшенное управление (Мышь + Мобилки) ---
-        let isDragging = false, startX, startY, lastX, lastY;
-        let touchStartCoords = { x: 0, y: 0 };
-
-        // Утилита для получения координат события (мышь или тач)
-        const getEventCoords = (e) => e.touches ? e.touches[0] : e;
-
-        viewport.addEventListener('mousedown', (e) => {
-            if (e.target.closest('.palette')) return; // Игнорируем клик по палитре
-            isDragging = true;
-            const coords = getEventCoords(e);
-            startX = lastX = coords.clientX; startY = lastY = coords.clientY;
-        });
-
-        viewport.addEventListener('touchstart', (e) => {
-            if (e.target.closest('.palette')) return;
-            isDragging = true;
-            const coords = getEventCoords(e);
-            startX = lastX = coords.clientX; startY = lastY = coords.clientY;
-            touchStartCoords = { x: coords.clientX, y: coords.clientY };
         }, {passive: false});
 
-        window.addEventListener('mousemove', (e) => {
-            updateCoordsInformer(e.clientX, e.clientY);
-            if (!isDragging) return;
-            offsetX += e.clientX - lastX; offsetY += e.clientY - lastY;
-            lastX = e.clientX; lastY = e.clientY;
-            updateTransform();
-        });
-
-        window.addEventListener('touchmove', (e) => {
-            if (!isDragging) return;
-            const coords = getEventCoords(e);
-            offsetX += coords.clientX - lastX; offsetY += coords.clientY - lastY;
-            lastX = coords.clientX; lastY = coords.clientY;
-            updateTransform();
-            e.preventDefault(); // Запрет скролла страницы
-        }, {passive: false});
-
-        const handleEnd = (e) => {
-            if (!isDragging) return;
-            const coords = e.changedTouches ? e.changedTouches[0] : e;
-            const dist = Math.hypot(coords.clientX - startX, coords.clientY - startY);
-            
-            // Если сдвиг минимальный (это тап/клик) и нет кулдауна
-            if (dist < 8 && !inCooldown) {
-                if (e.button === 0 || e.changedTouches) { // ЛКМ или Тап
-                    const canvasCoords = getCanvasCoords(coords.clientX, coords.clientY);
-                    if (canvasCoords.x >= 0 && canvasCoords.x < GRID_SIZE && canvasCoords.y >= 0 && canvasCoords.y < GRID_SIZE) {
-                        socket.emit('draw', { x: canvasCoords.x, y: canvasCoords.y, color: selectedColor });
+        window.addEventListener('touchend', e => {
+            if (isMoving && e.touches.length === 0) {
+                let endX = e.changedTouches[0].pageX;
+                let endY = e.changedTouches[0].pageY;
+                let dist = Math.hypot(endX - startX, endY - startY);
+                if (dist < 10 && (Date.now() - tapStart < 200) && !inCooldown) {
+                    const rect = canvas.getBoundingClientRect();
+                    const x = Math.floor((endX - rect.left) / (CELL_SIZE * scale));
+                    const y = Math.floor((endY - rect.top) / (CELL_SIZE * scale));
+                    if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
+                        socket.emit('draw', { x, y, color: selectedColor });
                     }
                 }
+                isMoving = false;
             }
-            isDragging = false;
-        };
+        });
 
-        window.addEventListener('mouseup', handleEnd);
-        window.addEventListener('touchend', handleEnd);
+        // ПК УПРАВЛЕНИЕ
+        window.addEventListener('wheel', e => {
+            scale *= e.deltaY > 0 ? 0.9 : 1.1;
+            scale = Math.max(0.2, Math.min(scale, 20));
+            updateTransform();
+        }, {passive: false});
+
+        window.addEventListener('mousedown', e => {
+            if (e.target.closest('.palette-container')) return;
+            isMoving = true;
+            startX = lastX = e.clientX; startY = lastY = e.clientY;
+            tapStart = Date.now();
+        });
+
+        window.addEventListener('mousemove', e => {
+            const rect = canvas.getBoundingClientRect();
+            const x = Math.floor((e.clientX - rect.left) / (CELL_SIZE * scale));
+            const y = Math.floor((e.clientY - rect.top) / (CELL_SIZE * scale));
+            coordsEl.innerText = (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) ? `[${x}, ${y}]` : `[Out]`;
+            if (isMoving) {
+                offsetX += e.clientX - lastX;
+                offsetY += e.clientY - lastY;
+                lastX = e.clientX; lastY = e.clientY;
+                updateTransform();
+            }
+        });
+
+        window.addEventListener('mouseup', e => {
+            if (isMoving && Math.hypot(e.clientX - startX, e.clientY - startY) < 5 && !inCooldown) {
+                const rect = canvas.getBoundingClientRect();
+                const x = Math.floor((e.clientX - rect.left) / (CELL_SIZE * scale));
+                const y = Math.floor((e.clientY - rect.top) / (CELL_SIZE * scale));
+                if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
+                    socket.emit('draw', { x, y, color: selectedColor });
+                }
+            }
+            isMoving = false;
+        });
     </script>
 </body>
 </html>
