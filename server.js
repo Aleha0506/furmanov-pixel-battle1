@@ -20,7 +20,7 @@ if (fs.existsSync(SAVE_PATH)) {
     board = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill('#ffffff'));
 }
 
-const COOLDOWN_MS = 300; 
+const COOLDOWN_MS = 50; 
 const lastDrawTimes = new Map();
 let onlineCount = 0;
 
