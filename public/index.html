@@ -8,66 +8,63 @@
         body { 
             display: flex; flex-direction: column; align-items: center; 
             background: #121212; 
-            /* --- ИЗМЕНЕНО: Ставим твой фон --- */
+            /* Фоновое изображение ТЦ Лада */
             background-image: url('background.jpg'); 
             background-size: cover; background-position: center; background-attachment: fixed;
-            color: white; font-family: 'Segoe UI', sans-serif; 
+            color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
             margin: 0; height: 100vh; overflow: hidden;
         }
 
-        h1 { margin: 10px 0; font-size: 22px; z-index: 10; text-shadow: 2px 2px 5px black; }
+        h1 { margin: 10px 0; font-size: 24px; z-index: 10; text-shadow: 2px 2px 8px black; }
 
-        /* Панель статуса сверху */
-        .controls { 
-            position: fixed; top: 10px; left: 10px; z-index: 20;
-            background: rgba(30, 30, 30, 0.9); padding: 5px 15px; border-radius: 20px;
-            display: flex; align-items: center; border: 1px solid #444; backdrop-filter: blur(5px);
+        /* Верхняя панель управления */
+        .top-bar { 
+            position: fixed; top: 15px; left: 15px; z-index: 20;
+            background: rgba(20, 20, 20, 0.85); padding: 8px 20px; border-radius: 25px;
+            display: flex; align-items: center; border: 1px solid #444; backdrop-filter: blur(8px);
         }
-        #status { font-weight: bold; min-width: 130px; text-align: center; }
+        #status { font-weight: bold; min-width: 140px; text-align: center; }
 
-        /* ИНФОРМЕР ОНЛАЙНА И КООРДИНАТ (Сверху справа) */
+        /* Информер (онлайн и координаты) */
         .informer {
-            position: fixed; top: 10px; right: 10px; z-index: 20;
-            background: rgba(0, 0, 0, 0.6); padding: 5px 12px; border-radius: 15px;
-            display: flex; gap: 15px; font-size: 14px; color: #aaa;
+            position: fixed; top: 15px; right: 15px; z-index: 20;
+            background: rgba(0, 0, 0, 0.7); padding: 8px 15px; border-radius: 20px;
+            display: flex; gap: 20px; font-size: 14px; border: 1px solid #333;
         }
-        .informer span { color: #eee; font-weight: bold; }
+        .informer span { color: #00ff88; font-weight: bold; }
 
-        /* ПАЛИТРА ЦВЕТОВ (Справа) */
+        /* Палитра справа */
         .palette {
-            position: fixed; right: 10px; top: 60px; z-index: 20;
-            display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px;
-            background: rgba(30, 30, 30, 0.95); padding: 10px; border-radius: 15px;
-            border: 1px solid #444; backdrop-filter: blur(10px);
+            position: fixed; right: 15px; top: 80px; z-index: 20;
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+            background: rgba(25, 25, 25, 0.9); padding: 12px; border-radius: 15px;
+            border: 1px solid #555; backdrop-filter: blur(10px);
         }
         .color-block {
-            width: 35px; height: 35px; border-radius: 8px; cursor: pointer;
-            border: 2px solid transparent; transition: scale 0.1s, border-color 0.1s;
+            width: 38px; height: 38px; border-radius: 10px; cursor: pointer;
+            border: 2px solid transparent; transition: transform 0.1s;
         }
-        .color-block:hover { scale: 1.1; }
-        .color-block.selected { border-color: white; scale: 1.15; box-shadow: 0 0 10px white; }
+        .color-block:hover { transform: scale(1.1); }
+        .color-block.selected { border-color: white; transform: scale(1.15); box-shadow: 0 0 12px white; }
 
         #viewport {
             width: 100vw; height: 100vh;
-            overflow: hidden; 
-            /* --- ИЗМЕНЕНО: Обычный курсор для перемещения --- */
-            cursor: move; 
+            overflow: hidden; cursor: move;
             display: flex; align-items: center; justify-content: center;
             touch-action: none;
         }
 
         #canvas { 
-            background: rgba(255,255,255,0.9); 
-            image-rendering: pixelated; 
-            box-shadow: 0 0 50px rgba(0,0,0,0.8);
-            /* --- ИЗМЕНЕНО: Белый палец на холсте --- */
-            cursor: pointer; 
+            background: white; image-rendering: pixelated; 
+            box-shadow: 0 0 40px rgba(0,0,0,0.7);
+            cursor: pointer; /* Белый палец из Windows */
         }
     </style>
 </head>
 <body>
     <h1>Пиксель батл Фурманов</h1>
-    <div class="controls">
+    
+    <div class="top-bar">
         <div id="status">Загрузка...</div>
     </div>
 
@@ -76,8 +73,7 @@
         Координаты: <span id="coords">[X, Y]</span>
     </div>
 
-    <div class="palette" id="palette">
-        </div>
+    <div class="palette" id="palette"></div>
 
     <div id="viewport">
         <canvas id="canvas" width="1000" height="1000"></canvas>
@@ -96,39 +92,29 @@
 
         const GRID_SIZE = 200; 
         const CELL_SIZE = canvas.width / GRID_SIZE;
-        const COOLDOWN_TIME = 3000;
         
-        let scale = 1.5, offsetX = 0, offsetY = 0;
+        let scale = 1.8, offsetX = 0, offsetY = 0;
         let inCooldown = false;
-        let selectedColor = '#ff0000'; // По умолчанию Красный
+        let selectedColor = '#ee0101'; // Стандартный красный из твоей палитры
 
-        // Список цветов, извлеченных из картинки палитры
         const FurmanovPalette = [
-            '#ffffff', '#e6e6e6', '#9e9e9e', '#363636', '#000000', // Ряд 1
-            '#5a3a2a', '#a67d56', '#fdca96', '#710617', '#c2183e', // Ряд 2
-            '#ee0101', '#ee1970', '#fcb4cb', '#bd007c', '#e49301', // Ряд 3 (Выбран Красный)
-            '#f7ac01', '#ffff00', '#fff3cd', '#00753e', '#1dbd01', // Ряд 4
-            '#94eb39', '#018375', '#0000ff', '#0097f4', '#3d95ff', // Ряд 5
-            '#00ced1', '#59dedf', '#5836c4', '#6a65ff', '#b033d4', // Ряд 6
-            '#8d00ad', '#1c1f2b'                                  // Ряд 7
+            '#ffffff', '#e6e6e6', '#9e9e9e', '#363636', '#000000', '#5a3a2a', '#a67d56', '#fdca96',
+            '#710617', '#c2183e', '#ee0101', '#ee1970', '#fcb4cb', '#bd007c', '#e49301', '#f7ac01',
+            '#ffff00', '#fff3cd', '#00753e', '#1dbd01', '#94eb39', '#018375', '#0000ff', '#0097f4',
+            '#3d95ff', '#00ced1', '#59dedf', '#5836c4', '#6a65ff', '#b033d4', '#8d00ad', '#1c1f2b'
         ];
 
-        // Генерируем палитру справа
         function initPalette() {
             FurmanovPalette.forEach(color => {
                 const block = document.createElement('div');
                 block.className = 'color-block';
                 block.style.backgroundColor = color;
-                
                 if (color === selectedColor) block.classList.add('selected');
-
-                block.addEventListener('click', () => {
-                    // Снимаем выбор со старого
+                block.onclick = () => {
                     document.querySelector('.color-block.selected')?.classList.remove('selected');
-                    // Ставим на новый
                     block.classList.add('selected');
                     selectedColor = color;
-                });
+                };
                 paletteEl.appendChild(block);
             });
         }
@@ -141,28 +127,23 @@
         socket.on('init', (board) => {
             statusEl.innerText = "Можно рисовать!";
             statusEl.style.color = "#4CAF50";
-            ctx.clearRect(0,0,1000,1000);
             for (let y = 0; y < GRID_SIZE; y++) {
                 for (let x = 0; x < GRID_SIZE; x++) {
                     drawPixel(x, y, board[y][x]);
                 }
             }
-            updateTransform();
             initPalette();
+            updateTransform();
         });
 
         socket.on('update', (data) => drawPixel(data.x, data.y, data.color));
+        
+        socket.on('online_count', (count) => onlineEl.innerText = count);
 
-        // --- ИЗМЕНЕНО: Обновление счетчика онлайна ---
-        socket.on('online_count', (count) => {
-            onlineEl.innerText = count;
-        });
-
-        function startCooldown() {
+        socket.on('cooldown_start', (ms) => {
             inCooldown = true;
-            let timeLeft = COOLDOWN_TIME / 1000;
+            let timeLeft = ms / 1000;
             statusEl.style.color = "#FF5252";
-            
             const timer = setInterval(() => {
                 timeLeft--;
                 if (timeLeft <= 0) {
@@ -174,93 +155,84 @@
                     statusEl.innerText = `Жди: ${timeLeft} сек`;
                 }
             }, 1000);
-        }
+        });
 
         function updateTransform() {
             canvas.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
         }
 
-        // Обновление координат курсора
-        function updateCoordInformer(clientX, clientY) {
+        function updateCoords(clientX, clientY) {
             const rect = canvas.getBoundingClientRect();
             const x = Math.floor((clientX - rect.left) / (CELL_SIZE * scale));
             const y = Math.floor((clientY - rect.top) / (CELL_SIZE * scale));
-            
             if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
                 coordsEl.innerText = `[${x}, ${y}]`;
-                coordsEl.style.color = "#4CAF50";
             } else {
-                coordsEl.innerText = "[Out]";
-                coordsEl.style.color = "#FF5252";
+                coordsEl.innerText = "[Вне поля]";
             }
         }
 
-        viewport.addEventListener('wheel', (e) => {
+        viewport.onwheel = (e) => {
             e.preventDefault();
-            scale = Math.min(Math.max(0.3, scale * (e.deltaY > 0 ? 0.85 : 1.15)), 20);
+            scale = Math.min(Math.max(0.4, scale * (e.deltaY > 0 ? 0.85 : 1.15)), 25);
             updateTransform();
-            updateCoordInformer(e.clientX, e.clientY); // Координаты меняются при зуме
-        }, { passive: false });
+        };
 
         let isDragging = false, startX, startY, lastX, lastY;
 
-        function handlePlace(clientX, clientY) {
-            if (inCooldown) return;
-            const rect = canvas.getBoundingClientRect();
-            const x = Math.floor((clientX - rect.left) / (CELL_SIZE * scale));
-            const y = Math.floor((clientY - rect.top) / (CELL_SIZE * scale));
-            
-            if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
-                // Используем цвет из палитры
-                socket.emit('draw', { x, y, color: selectedColor });
-                drawPixel(x, y, selectedColor); 
-                startCooldown();
-            }
-        }
-
-        viewport.addEventListener('mousedown', (e) => {
+        viewport.onmousedown = (e) => {
             isDragging = true;
             startX = lastX = e.clientX; startY = lastY = e.clientY;
-            // При перетаскивании — кулак
-            viewport.style.cursor = "grabbing";
-        });
+        };
 
-        window.addEventListener('mousemove', (e) => {
-            updateCoordInformer(e.clientX, e.clientY);
+        window.onmousemove = (e) => {
+            updateCoords(e.clientX, e.clientY);
             if (!isDragging) return;
             offsetX += e.clientX - lastX; offsetY += e.clientY - lastY;
             lastX = e.clientX; lastY = e.clientY;
             updateTransform();
-        });
+        };
 
-        window.addEventListener('mouseup', (e) => {
+        window.onmouseup = (e) => {
             if (!isDragging) return;
             const dist = Math.hypot(e.clientX - startX, e.clientY - startY);
-            if (dist < 5 && e.button === 0) handlePlace(e.clientX, e.clientY);
+            if (dist < 5 && e.button === 0 && !inCooldown) {
+                const rect = canvas.getBoundingClientRect();
+                const x = Math.floor((e.clientX - rect.left) / (CELL_SIZE * scale));
+                const y = Math.floor((e.clientY - rect.top) / (CELL_SIZE * scale));
+                if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
+                    socket.emit('draw', { x, y, color: selectedColor });
+                }
+            }
             isDragging = false;
-            // Обычный курсор
-            viewport.style.cursor = "move"; 
-        });
+        };
 
-        // Мобилки
-        viewport.addEventListener('touchstart', (e) => {
+        // Поддержка тач-скринов
+        viewport.ontouchstart = (e) => {
             const t = e.touches[0];
             startX = lastX = t.clientX; startY = lastY = t.clientY;
             isDragging = true;
-        }, {passive: false});
-        viewport.addEventListener('touchmove', (e) => {
+        };
+        viewport.ontouchmove = (e) => {
             if (!isDragging) return;
             const t = e.touches[0];
             offsetX += t.clientX - lastX; offsetY += t.clientY - lastY;
             lastX = t.clientX; lastY = t.clientY;
             updateTransform();
             e.preventDefault();
-        }, {passive: false});
-        viewport.addEventListener('touchend', (e) => {
+        };
+        viewport.ontouchend = (e) => {
             const t = e.changedTouches[0];
-            if (Math.hypot(t.clientX - startX, t.clientY - startY) < 10) handlePlace(t.clientX, t.clientY);
+            if (Math.hypot(t.clientX - startX, t.clientY - startY) < 10) {
+                const rect = canvas.getBoundingClientRect();
+                const x = Math.floor((t.clientX - rect.left) / (CELL_SIZE * scale));
+                const y = Math.floor((t.clientY - rect.top) / (CELL_SIZE * scale));
+                if (!inCooldown && x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
+                    socket.emit('draw', { x, y, color: selectedColor });
+                }
+            }
             isDragging = false;
-        });
+        };
     </script>
 </body>
 </html>
