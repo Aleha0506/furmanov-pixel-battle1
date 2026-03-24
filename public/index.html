@@ -6,62 +6,54 @@
     <title>Пиксель батл Фурманов</title>
     <style>
         body { 
-            margin: 0; height: 100vh; overflow: hidden;
-            background: #121212 url('background.jpg') center/cover fixed;
-            color: white; font-family: sans-serif;
-            touch-action: none; -webkit-user-select: none;
+            margin: 0; height: 100vh; overflow: hidden; background: #121212;
+            background-image: url('background.jpg'); background-size: cover; background-position: center;
+            color: white; font-family: sans-serif; touch-action: none;
         }
 
         .header {
             position: fixed; top: 10px; width: 100%; display: flex;
-            justify-content: space-between; padding: 0 15px; box-sizing: border-box; z-index: 50;
+            justify-content: space-between; padding: 0 15px; box-sizing: border-box; z-index: 100;
         }
-        .ui-box {
-            background: rgba(20, 20, 20, 0.9); padding: 8px 12px;
-            border-radius: 12px; border: 1px solid #444; font-size: 14px; backdrop-filter: blur(5px);
-        }
+        .ui-box { background: rgba(0,0,0,0.8); padding: 8px 12px; border-radius: 10px; font-size: 14px; border: 1px solid #333; }
 
-        .coords-box { position: fixed; bottom: 100px; left: 15px; z-index: 50; }
-
-        /* ИСПРАВЛЕННАЯ ПАЛИТРА: теперь свайп работает */
+        /* ИСПРАВЛЕННАЯ ПАЛИТРА */
         .palette-container {
             position: fixed; bottom: 0; left: 0; width: 100%;
-            background: rgba(15, 15, 15, 0.95); padding: 15px 0;
-            border-top: 1px solid #444; z-index: 100;
-            overflow-x: auto; /* Включаем прокрутку */
-            touch-action: pan-x; /* Разрешаем только горизонтальный свайп */
-            -webkit-overflow-scrolling: touch;
+            background: rgba(10, 10, 10, 0.95); padding: 15px 0;
+            border-top: 1px solid #444; z-index: 200;
+            /* Включаем нативную прокрутку */
+            overflow-x: auto; 
+            touch-action: pan-x !important; /* Разрешаем только горизонтальный свайп */
+            -webkit-overflow-scrolling: touch; /* Инерция на iPhone */
         }
         .palette { display: flex; gap: 12px; padding: 0 20px; width: max-content; }
         .color-block {
-            width: 45px; height: 45px; border-radius: 10px; border: 2px solid transparent;
-            flex-shrink: 0; cursor: pointer;
+            width: 45px; height: 45px; border-radius: 8px; flex-shrink: 0;
+            border: 2px solid transparent; box-sizing: border-box;
         }
-        .color-block.selected { border-color: white; transform: scale(1.1); box-shadow: 0 0 15px white; }
+        .color-block.selected { border-color: white; box-shadow: 0 0 10px white; }
 
-        #viewport { width: 100vw; height: 100vh; cursor: move; }
+        #viewport { width: 100vw; height: 100vh; position: relative; }
         #canvas { 
             background: white; image-rendering: pixelated; 
-            box-shadow: 0 0 50px rgba(0,0,0,0.9); 
-            position: absolute; top: 0; left: 0; transform-origin: 0 0;
+            position: absolute; transform-origin: 0 0;
         }
     </style>
 </head>
 <body>
 
     <div class="header">
-        <div class="ui-box" id="status" style="color:#0f8;">Загрузка...</div>
+        <div class="ui-box" id="status">Загрузка...</div>
         <div class="ui-box">Онлайн: <span id="onlineCount" style="color:#0f8;">0</span></div>
-    </div>
-
-    <div class="ui-box coords-box" id="coords">[X, Y]</div>
-
-    <div class="palette-container">
-        <div class="palette" id="palette"></div>
     </div>
 
     <div id="viewport">
         <canvas id="canvas" width="1000" height="1000"></canvas>
+    </div>
+
+    <div class="palette-container" id="p-cont">
+        <div class="palette" id="palette"></div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
@@ -71,15 +63,14 @@
         const ctx = canvas.getContext('2d');
         const statusEl = document.getElementById('status');
         const onlineEl = document.getElementById('onlineCount');
-        const coordsEl = document.getElementById('coords');
         const paletteEl = document.getElementById('palette');
+        const pCont = document.getElementById('p-cont');
 
         const GRID_SIZE = 200; 
         const CELL_SIZE = 1000 / GRID_SIZE;
         
         let scale = 1.0, offsetX = window.innerWidth/2 - 500, offsetY = window.innerHeight/2 - 500;
-        let inCooldown = false;
-        let selectedColor = '#ee0101';
+        let inCooldown = false, selectedColor = '#ee0101';
 
         const FurmanovPalette = [
             '#ffffff', '#e6e6e6', '#9e9e9e', '#363636', '#000000', '#5a3a2a', '#a67d56', '#fdca96',
@@ -94,12 +85,10 @@
                 block.className = 'color-block';
                 block.style.backgroundColor = color;
                 if (color === selectedColor) block.classList.add('selected');
-                block.addEventListener('touchend', (e) => {
-                    document.querySelector('.color-block.selected')?.classList.remove('selected');
-                    block.classList.add('selected');
-                    selectedColor = color;
-                });
-                block.onclick = () => {
+                
+                // Используем pointerdown для мгновенного выбора на всех устройствах
+                block.onpointerdown = (e) => {
+                    e.stopPropagation();
                     document.querySelector('.color-block.selected')?.classList.remove('selected');
                     block.classList.add('selected');
                     selectedColor = color;
@@ -130,28 +119,22 @@
         });
 
         socket.on('online_count', (count) => onlineEl.innerText = count);
-
         socket.on('cooldown_start', (ms) => {
-            inCooldown = true;
-            statusEl.innerText = "Жди...";
-            statusEl.style.color = "#f55";
-            setTimeout(() => {
-                inCooldown = false;
-                statusEl.innerText = "Рисуй!";
-                statusEl.style.color = "#0f8";
-            }, ms);
+            inCooldown = true; statusEl.innerText = "Жди..."; statusEl.style.color = "#f55";
+            setTimeout(() => { inCooldown = false; statusEl.innerText = "Рисуй!"; statusEl.style.color = "#0f8"; }, ms);
         });
 
-        // ПЛАВНЫЙ ЗУМ И ПЕРЕМЕЩЕНИЕ
-        let lastDist = 0;
-        let isMoving = false;
-        let startX, startY, lastX, lastY, tapStart;
+        // УПРАВЛЕНИЕ ХОЛСТОМ
+        let lastDist = 0, isMoving = false, startX, startY, lastX, lastY, tapStart;
+
+        // Блокируем любые жесты на холсте, если палец на палитре
+        pCont.addEventListener('touchstart', e => e.stopPropagation(), {passive: true});
 
         window.addEventListener('touchstart', e => {
             if (e.target.closest('.palette-container')) return;
             if (e.touches.length === 2) {
                 lastDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
-                isMoving = false; // Отключаем движение при зуме
+                isMoving = false;
             } else {
                 isMoving = true;
                 startX = lastX = e.touches[0].pageX;
@@ -161,10 +144,11 @@
         }, {passive: false});
 
         window.addEventListener('touchmove', e => {
+            if (e.target.closest('.palette-container')) return; // Не мешаем свайпу палитры
             if (e.touches.length === 2) {
                 let dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
                 let zoom = dist / lastDist;
-                scale = Math.max(0.2, Math.min(scale * zoom, 20));
+                scale = Math.max(0.15, Math.min(scale * zoom, 25));
                 lastDist = dist;
             } else if (isMoving) {
                 offsetX += e.touches[0].pageX - lastX;
@@ -180,8 +164,7 @@
             if (isMoving && e.touches.length === 0) {
                 let endX = e.changedTouches[0].pageX;
                 let endY = e.changedTouches[0].pageY;
-                let dist = Math.hypot(endX - startX, endY - startY);
-                if (dist < 10 && (Date.now() - tapStart < 200) && !inCooldown) {
+                if (Math.hypot(endX - startX, endY - startY) < 10 && (Date.now() - tapStart < 250) && !inCooldown) {
                     const x = Math.floor((endX - offsetX) / (CELL_SIZE * scale));
                     const y = Math.floor((endY - offsetY) / (CELL_SIZE * scale));
                     if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
@@ -192,29 +175,21 @@
             }
         });
 
-        // ПК Мышь
+        // Мышь и Колесо
         window.addEventListener('wheel', e => {
-            let zoom = e.deltaY > 0 ? 0.9 : 1.1;
-            scale = Math.max(0.2, Math.min(scale * zoom, 20));
+            scale = Math.max(0.15, Math.min(scale * (e.deltaY > 0 ? 0.9 : 1.1), 25));
             updateTransform();
-        });
+        }, {passive: false});
 
         window.addEventListener('mousedown', e => {
             if (e.target.closest('.palette-container')) return;
-            isMoving = true;
-            startX = lastX = e.clientX; startY = lastY = e.clientY;
-            tapStart = Date.now();
+            isMoving = true; startX = lastX = e.clientX; startY = lastY = e.clientY; tapStart = Date.now();
         });
 
         window.addEventListener('mousemove', e => {
-            const x = Math.floor((e.clientX - offsetX) / (CELL_SIZE * scale));
-            const y = Math.floor((e.clientY - offsetY) / (CELL_SIZE * scale));
-            coordsEl.innerText = (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) ? `[${x}, ${y}]` : `[Out]`;
             if (isMoving) {
-                offsetX += e.clientX - lastX;
-                offsetY += e.clientY - lastY;
-                lastX = e.clientX; lastY = e.clientY;
-                updateTransform();
+                offsetX += e.clientX - lastX; offsetY += e.clientY - lastY;
+                lastX = e.clientX; lastY = e.clientY; updateTransform();
             }
         });
 
@@ -222,9 +197,7 @@
             if (isMoving && Math.hypot(e.clientX - startX, e.clientY - startY) < 5 && !inCooldown) {
                 const x = Math.floor((e.clientX - offsetX) / (CELL_SIZE * scale));
                 const y = Math.floor((e.clientY - offsetY) / (CELL_SIZE * scale));
-                if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
-                    socket.emit('draw', { x, y, color: selectedColor });
-                }
+                if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) socket.emit('draw', { x, y, color: selectedColor });
             }
             isMoving = false;
         });
